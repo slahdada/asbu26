@@ -1,0 +1,451 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Custom animation keyframes */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.28s cubic-bezier(0.1, 0.76, 0.55, 0.94) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Scrollbar styling for smooth cards list */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ==========================================================================
+   MODE CLAIR (LIGHT THEME) STYLES
+   ========================================================================== */
+html.light,
+html.light body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Surfaces & Backgrounds */
+html.light header {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .bg-slate-900,
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/70 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900\/20 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-slate-950,
+html.light .bg-slate-950\/95,
+html.light .bg-slate-950\/90 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/30 {
+  background-color: #ffffff !important;
+}
+
+/* Borders */
+html.light .border-slate-800,
+html.light .border-slate-800\/90,
+html.light .border-slate-800\/80,
+html.light .border-slate-800\/70,
+html.light .border-slate-800\/60,
+html.light .border-slate-800\/50,
+html.light .border-slate-800\/40,
+html.light .border-slate-700 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Text Hierarchy */
+html.light .text-white,
+html.light .text-slate-100,
+html.light .text-slate-200 {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.light .text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+/* Maintain crisp white text inside solid colored badges/buttons */
+html.light .bg-sky-600,
+html.light .bg-sky-600 *,
+html.light .bg-sky-500,
+html.light .bg-sky-500 *,
+html.light .bg-emerald-600,
+html.light .bg-emerald-600 *,
+html.light .bg-emerald-500,
+html.light .bg-emerald-500 *,
+html.light .bg-rose-600,
+html.light .bg-rose-600 *,
+html.light .bg-rose-500,
+html.light .bg-rose-500 *,
+html.light .bg-indigo-600,
+html.light .bg-indigo-600 *,
+html.light [class*="bg-gradient-to-"] * {
+  color: #ffffff !important;
+}
+
+/* Form inputs & Selects */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light select,
+html.light textarea {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15) !important;
+}
+
+html.light input[type="date"] {
+  color-scheme: light !important;
+}
+
+/* Search Input */
+html.light #search-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Action Toolbar Buttons */
+html.light .bg-rose-950\/60 {
+  background-color: #ffe4e6 !important;
+  border-color: #fecdd3 !important;
+  color: #be123c !important;
+}
+html.light .bg-rose-950\/60:hover {
+  background-color: #fecdd3 !important;
+}
+
+html.light .bg-indigo-950\/60 {
+  background-color: #e0e7ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
+}
+html.light .bg-indigo-950\/60:hover {
+  background-color: #c7d2fe !important;
+}
+
+html.light .bg-emerald-950\/60 {
+  background-color: #dcfce7 !important;
+  border-color: #bbf7d0 !important;
+  color: #15803d !important;
+}
+html.light .bg-emerald-950\/60:hover {
+  background-color: #bbf7d0 !important;
+}
+
+html.light .bg-sky-950\/60 {
+  background-color: #e0f2fe !important;
+  border-color: #bae6fd !important;
+  color: #0369a1 !important;
+}
+html.light .bg-sky-950\/60:hover {
+  background-color: #bae6fd !important;
+}
+
+html.light .bg-amber-950\/60 {
+  background-color: #fef3c7 !important;
+  border-color: #fde68a !important;
+  color: #b45309 !important;
+}
+html.light .bg-amber-950\/60:hover {
+  background-color: #fde68a !important;
+}
+
+/* Action Icons inside Tables & Cards */
+html.light .bg-sky-950,
+html.light .bg-sky-950\/80 {
+  background-color: #e0f2fe !important;
+  border-color: #bae6fd !important;
+  color: #0284c7 !important;
+}
+
+html.light .bg-emerald-950,
+html.light .bg-emerald-950\/80 {
+  background-color: #dcfce7 !important;
+  border-color: #bbf7d0 !important;
+  color: #16a34a !important;
+}
+
+html.light .bg-teal-950 {
+  background-color: #ccfbf1 !important;
+  border-color: #99f6e4 !important;
+  color: #0d9488 !important;
+}
+
+html.light .bg-rose-950,
+html.light .bg-rose-950\/50 {
+  background-color: #ffe4e6 !important;
+  border-color: #fecdd3 !important;
+  color: #e11d48 !important;
+}
+
+html.light .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+html.light .bg-slate-800:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Table */
+html.light #rides-table-container {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light #rides-table thead tr {
+  background-color: #f8fafc !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+}
+
+html.light #rides-table thead th {
+  color: #475569 !important;
+}
+
+html.light #rides-table tbody tr.even\:bg-slate-950\/40 {
+  background-color: #ffffff !important;
+}
+
+html.light #rides-table tbody tr.odd\:bg-slate-900\/20 {
+  background-color: #f8fafc !important;
+}
+
+html.light #rides-table tbody tr:hover {
+  background-color: #f0f9ff !important;
+}
+
+/* Grid Cards */
+html.light #rides-grid-list > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light #rides-grid-list > div:hover {
+  border-color: #0284c7 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Modals & Dialogs */
+html.light #vehicle-modal-container,
+html.light #executable-details-container,
+html.light #delete-modal-container,
+html.light #delete-all-modal-container,
+html.light #ios-guide-overlay > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.light #vehicle-modal-container header,
+html.light #executable-details-container header {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light #close-form-btn,
+html.light #close-details-btn {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light #close-form-btn:hover,
+html.light #close-details-btn:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Mobile Bottom Navigation */
+html.light #mobile-bottom-nav {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light #mobile-bottom-nav button {
+  color: #64748b !important;
+}
+
+html.light #mobile-bottom-nav button:active {
+  color: #0284c7 !important;
+}
+
+html.light #nav-add-btn {
+  border-color: #f8fafc !important;
+}
+
+/* View Mode Switcher Pill Container */
+html.light .rounded-xl.bg-slate-950.border.border-slate-800\/80 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Toast Notifications */
+html.light #toast-container > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Scrollbar in Light Mode */
+html.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
+}
+
+/* Clean styling for printing & PDF exports */
+@media print {
+  html, body {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+  
+  /* Hide all buttons, navigation bars, search area, headers, footers and feedback */
+  header,
+  footer,
+  #search-section,
+  #mobile-bottom-nav,
+  #toast-container,
+  #offline-banner,
+  .no-print,
+  button,
+  a[href^="tel:"],
+  a[href^="https://wa.me/"] {
+    display: none !important;
+  }
+
+  /* Make containers fit page bounds and remove dark backgrounds */
+  main {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Turn dark table into standard clean print structure */
+  .bg-slate-950\/40,
+  table {
+    background: #ffffff !important;
+    border: 1px solid #1e293b !important;
+    color: #000000 !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  thead {
+    background-color: #f1f5f9 !important;
+  }
+
+  th, td {
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    padding: 10px 12px !important;
+  }
+
+  /* Keep text colors dark for standard ink printers */
+  .text-white, .text-slate-200, .text-slate-300, .text-slate-400 {
+    color: #0f172a !important;
+  }
+
+  /* Always expand mobile-hidden table container so desktop columns show up on paper/PDF */
+  #rides-table-container {
+    display: block !important;
+  }
+  #rides-table {
+    display: table !important;
+  }
+  
+  /* Hide the vertical card layout completely for printing to preserve paper */
+  #mobile-cards-list {
+    display: none !important;
+  }
+}

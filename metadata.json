@@ -1,0 +1,6 @@
+{
+  "name": "Gestion Voitures",
+  "description": "Application professionnelle de gestion de courses et flotte automobile avec vue liste sheets/grille et fiches missions exécutables.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

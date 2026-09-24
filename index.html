@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Gestion Voitures</title>
+    <meta name="description" content="Application professionnelle de gestion de courses et flotte automobile avec vue liste sheets/grille et fiches missions exécutables." />
+    <meta property="og:title" content="Gestion Voitures" />
+    <meta property="og:description" content="Application professionnelle de gestion de courses et flotte automobile avec vue liste sheets/grille et fiches missions exécutables." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    
+    <!-- Mobile / PWA specific tags -->
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Gestion Voitures" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('fleet_theme');
+          if (t === 'light') {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#f8fafc');
+          }
+        } catch(e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-900 text-slate-100 select-none antialiased">
+    <!-- Message informatif direct si le fichier HTML est ouvert en double-clic (protocole file://) sans serveur local -->
+    <div id="file-protocol-warning" style="display:none; position:fixed; inset:0; z-index:99999; background:#0f172a; color:#f8fafc; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; padding:1.5rem; align-items:center; justify-content:center; text-align:center;">
+      <div style="max-width:540px; background:#1e293b; border:1px solid #334155; border-radius:1.25rem; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.6);">
+        <div style="font-size:3.5rem; margin-bottom:1rem;">🚗</div>
+        <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:0.75rem; color:#38bdf8;">Application Gestion Voitures</h1>
+        <p style="font-size:0.95rem; color:#cbd5e1; margin-bottom:1.5rem; line-height:1.6;">
+          Cette application moderne utilise <strong>React 19 + TypeScript + Vite</strong>.<br>
+          Les navigateurs web ne peuvent pas exécuter les modules TypeScript directement en ouvrant le fichier HTML en double-clic (<code>file://</code>).
+        </p>
+        <div style="background:#090d16; border-radius:0.75rem; padding:1.25rem; text-align:left; font-family:monospace; font-size:0.9rem; color:#4ade80; margin-bottom:1.5rem; border:1px solid #1e293b; line-height:1.8;">
+          <div style="color:#94a3b8; font-size:0.8rem; margin-bottom:0.5rem;">// Commandes pour lancer l'application en local :</div>
+          <div>1. <code>npm install</code></div>
+          <div>2. <code>npm run dev</code></div>
+          <div style="margin-top:0.5rem; color:#38bdf8; font-weight:bold;">👉 Ouvrez dans votre navigateur : <a href="http://localhost:3000" style="color:#38bdf8; text-decoration:underline;">http://localhost:3000</a></div>
+        </div>
+        <p style="font-size:0.8rem; color:#64748b; margin:0;">
+          Pour la version de production compilée : <code>npm run build</code> puis <code>npm run preview</code>.
+        </p>
+      </div>
+    </div>
+    <script>
+      (function() {
+        if (window.location.protocol === 'file:') {
+          var warning = document.getElementById('file-protocol-warning');
+          if (warning) warning.style.display = 'flex';
+        }
+      })();
+    </script>
+    <noscript>
+      <div style="position:fixed;inset:0;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:2rem;">
+        Veuillez activer JavaScript dans votre navigateur pour utiliser l'application de Gestion Voitures.
+      </div>
+    </noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
