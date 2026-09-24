@@ -1,53 +1,137 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
+    <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b" />
-      <stop offset="100%" stop-color="#0f172a" />
+      <stop offset="0%" stop-color="#0b1329" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
     </linearGradient>
-    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0ea5e9" />
-      <stop offset="100%" stop-color="#22c55e" />
+
+    <!-- Radial Glow Behind Car -->
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.45" />
+      <stop offset="60%" stop-color="#06b6d4" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Chrome & Cyan Gradient for Car Body -->
+    <linearGradient id="carBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="35%" stop-color="#e0f2fe" />
+      <stop offset="70%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
     </linearGradient>
+
+    <!-- Windshield Glass Gradient -->
+    <linearGradient id="windshieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#0369a1" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#0c4a6e" />
+    </linearGradient>
+
+    <!-- Speed / Horizon Accent -->
+    <linearGradient id="speedGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0" />
+      <stop offset="30%" stop-color="#38bdf8" />
+      <stop offset="70%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Headlight Beam Glow -->
+    <radialGradient id="headlightGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="40%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+    </radialGradient>
   </defs>
 
-  <!-- Background -->
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <!-- Base App Background (Squircle) -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad)" />
+  
+  <!-- Subtle Outer Border Accent -->
+  <rect x="3" y="3" width="506" height="506" rx="113" fill="none" stroke="#1e293b" stroke-width="4" />
+  <rect x="6" y="6" width="500" height="500" rx="110" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-opacity="0.4" />
 
-  <!-- Inner circular ring -->
-  <circle cx="256" cy="256" r="220" fill="none" stroke="#334155" stroke-width="8" stroke-dasharray="16 12" />
+  <!-- Ambient Glow in the Center -->
+  <circle cx="256" cy="245" r="180" fill="url(#centerGlow)" />
 
-  <!-- Main Car Icon -->
-  <g transform="translate(116, 120) scale(1.1)">
-    <!-- Car body top -->
-    <path d="M72 110 L96 48 C100 38, 110 32, 122 32 L158 32 C170 32, 180 38, 184 48 L208 110" fill="none" stroke="#38bdf8" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Dynamic Speed Arc / Fleet Ring -->
+  <path d="M 80,310 A 186,186 0 1,1 432,310" fill="none" stroke="url(#speedGrad)" stroke-width="5" stroke-linecap="round" stroke-dasharray="14 8" />
+
+  <!-- MODERN SUPERCAR / FLEET EMBLEM -->
+  <g transform="translate(0, 5)">
+    <!-- Cabin Shadow / Contrast -->
+    <path d="M 180,185 L 205,125 C 215,102 230,95 256,95 C 282,95 297,102 307,125 L 332,185 Z" fill="#031525" />
+
+    <!-- Windshield (Sleek aerodynamic glass) -->
+    <path d="M 184,182 L 208,128 C 216,110 228,104 256,104 C 284,104 296,110 304,128 L 328,182 C 300,172 212,172 184,182 Z" fill="url(#windshieldGrad)" />
     
-    <!-- Car cabin window separator -->
-    <path d="M140 32 L140 110" fill="none" stroke="#334155" stroke-width="8" />
+    <!-- Windshield Glass Reflections -->
+    <path d="M 216,132 L 232,132 L 206,177 L 194,177 Z" fill="#ffffff" fill-opacity="0.3" />
+    <path d="M 252,106 L 260,106 L 258,174 L 254,174 Z" fill="#38bdf8" fill-opacity="0.45" />
 
-    <!-- Car body base -->
-    <path d="M24 110 L256 110 C269 110, 280 121, 280 134 L280 180 C280 188, 273 195, 265 195 L250 195 C242 195, 235 188, 235 180 L235 170 L45 170 L45 180 C45 188, 38 195, 30 195 L15 195 C7 195, 0 188, 0 180 L0 134 C0 121, 11 110, 24 110 Z" fill="#f8fafc" />
+    <!-- Car Hood / Front Body (Sleek Sculpted Silhouette) -->
+    <path d="M 125,270 
+             C 120,240 135,215 160,200 
+             L 178,185 
+             C 200,180 230,178 256,178 
+             C 282,178 312,180 334,185 
+             L 352,200 
+             C 377,215 392,240 387,270 
+             L 382,295 
+             C 378,310 365,320 348,322 
+             L 326,324 
+             C 310,332 290,336 256,336 
+             C 222,336 202,332 186,324 
+             L 164,322 
+             C 147,320 134,310 130,295 Z" 
+          fill="url(#carBodyGrad)" />
 
-    <!-- Wheels -->
-    <circle cx="60" cy="195" r="28" fill="#0f172a" stroke="#38bdf8" stroke-width="8" />
-    <circle cx="60" cy="195" r="10" fill="#f8fafc" />
+    <!-- Sculpted Hood Crease Lines & Center Ridge -->
+    <path d="M 256,182 L 256,275" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-opacity="0.8" />
+    <path d="M 200,195 L 218,270" stroke="#bae6fd" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.6" />
+    <path d="M 312,195 L 294,270" stroke="#bae6fd" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.6" />
+
+    <!-- Sleek LED Matrix Headlights (Left & Right) -->
+    <!-- Left LED Blade -->
+    <polygon points="144,228 198,225 188,242 140,238" fill="#ffffff" />
+    <circle cx="150" cy="233" r="16" fill="url(#headlightGlow)" />
+    <!-- Right LED Blade -->
+    <polygon points="368,228 314,225 324,242 372,238" fill="#ffffff" />
+    <circle cx="362" cy="233" r="16" fill="url(#headlightGlow)" />
+
+    <!-- Front Lower Aerodynamic Grille / Diffuser -->
+    <path d="M 182,285 L 330,285 C 338,285 344,292 342,300 L 336,316 C 334,320 329,324 324,324 L 188,324 C 183,324 178,320 176,316 L 170,300 C 168,292 174,285 182,285 Z" fill="#090d16" stroke="#1e293b" stroke-width="2" />
+
+    <!-- Horizontal Chrome/Cyan Grille Ribs -->
+    <line x1="190" y1="295" x2="322" y2="295" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" />
+    <line x1="198" y1="304" x2="314" y2="304" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" />
+    <line x1="208" y1="313" x2="304" y2="313" stroke="#0284c7" stroke-width="1.5" stroke-linecap="round" />
+
+    <!-- Front License Plate / Fleet Badge -->
+    <rect x="220" y="293" width="72" height="18" rx="4" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" />
+    <text x="256" y="306" fill="#f8fafc" font-size="10" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-weight="900" letter-spacing="1.5" text-anchor="middle">PARC AUTO</text>
+
+    <!-- Aerodynamic Front Splitter -->
+    <path d="M 160,326 L 256,334 L 352,326 L 334,338 L 256,344 L 178,338 Z" fill="#0369a1" />
+
+    <!-- Dual Side Mirrors -->
+    <path d="M 168,198 L 132,192 C 126,191 122,195 124,201 L 128,206 C 131,210 137,212 142,210 L 165,204 Z" fill="#38bdf8" />
+    <path d="M 344,198 L 380,192 C 386,191 390,195 388,201 L 384,206 C 381,210 375,212 370,210 L 347,204 Z" fill="#38bdf8" />
+  </g>
+
+  <!-- Bottom App Title / Floating Shield Label -->
+  <g transform="translate(256, 412)">
+    <!-- Pill Backdrop -->
+    <rect x="-140" y="-22" width="280" height="44" rx="22" fill="#0f172a" fill-opacity="0.95" stroke="#334155" stroke-width="2" />
     
-    <circle cx="220" cy="195" r="28" fill="#0f172a" stroke="#22c55e" stroke-width="8" />
-    <circle cx="220" cy="195" r="10" fill="#f8fafc" />
-
-    <!-- Headlights -->
-    <circle cx="35" cy="140" r="14" fill="#38bdf8" />
-    <circle cx="245" cy="140" r="14" fill="#22c55e" />
-
-    <!-- Phone Call icon combined in bottom left -->
-    <g transform="translate(10, 60) scale(0.8)">
-      <circle cx="20" cy="20" r="25" fill="#0ea5e9" />
-      <path d="M12 12 C12 17, 15 20, 20 20 L22 18 C23 17, 25 17, 26 18 L28 20 C29 21, 29 23, 28 24 L26 26 C21 28, 14 21, 12 16 L14 14 C15 13, 15 11, 14 10 L12 8 C11 7, 9 7, 8 8 L7 9" fill="#ffffff" transform="translate(4,4) scale(0.8)"/>
-    </g>
-
-    <!-- WhatsApp chat icon combined in bottom right -->
-    <g transform="translate(210, 60) scale(0.8)">
-      <circle cx="20" cy="20" r="25" fill="#22c55e" />
-      <path d="M20 2 C10 2, 2 10, 2 20 C2 23.5, 3 26.8, 4.8 29.5 L2 38 L10.8 35.3 C13.5 37, 16.6 38, 20 38 C30 38, 38 30, 38 20 C38 10, 30 2, 20 2 Z M15.5 12.5 C16.5 12.5, 17 13.5, 17.5 14.5 C18 15.5, 18.5 16.5, 18.2 17.2 C18 17.8, 17.5 18.2, 17 18.5 C16.5 18.8, 16 19.2, 16.5 20 C17.5 21.8, 19.2 23.5, 21 24.5 C21.8 25, 22.2 24.5, 22.5 24 C22.8 23.5, 23.2 23, 23.8 22.8 C24.5 22.5, 25.5 23, 26.5 23.5 C27.5 24, 28.5 24.5, 28.5 25.5 C28.5 27, 26.5 28.5, 25 28.5 C23 28.5, 19.5 26.5, 16.5 23.5 C13.5 20.5, 11.5 17, 11.5 15 C11.5 13.5, 13 11.5, 14.5 11.5 Z" fill="#ffffff" transform="translate(6,6) scale(0.7)" />
-    </g>
+    <!-- Left Accent Pin -->
+    <circle cx="-112" cy="0" r="6" fill="#38bdf8" />
+    
+    <!-- Title Text -->
+    <text x="0" y="6" fill="#ffffff" font-size="18" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-weight="800" letter-spacing="2" text-anchor="middle">GESTION FLOTTE</text>
+    
+    <!-- Right Accent Pin -->
+    <circle cx="112" cy="0" r="6" fill="#10b981" />
   </g>
 </svg>

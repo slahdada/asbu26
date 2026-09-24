@@ -40,7 +40,8 @@ import {
   Maximize2,
   Minimize2,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  ArrowDownToLine
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -443,7 +444,7 @@ export default function App() {
   // PWA states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
 
   // Fullscreen & Refresh states
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -543,15 +544,6 @@ export default function App() {
       setTimeout(() => {
         setIsRefreshing(false);
       }, 500);
-    }
-  };
-
-  // Téléchargement (Installer PWA ou Télécharger sauvegarde JSON)
-  const handleDownloadOrInstall = () => {
-    if (!isInstalled && deferredPrompt) {
-      handleInstallClick();
-    } else {
-      handleExportJSON();
     }
   };
 
@@ -2000,22 +1992,28 @@ export default function App() {
 
   // 10. Manual PWA prompt installer
   const handleInstallClick = async () => {
+    if (isInstalled) {
+      showToast("L'application est déjà installée sur votre appareil ! 🚗", "success");
+      return;
+    }
+
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setIsInstalled(true);
-        setDeferredPrompt(null);
-      }
-    } else {
-      // iOS detection
-      const isIOS = /ipad|iphone|ipod/.test(navigator.userAgent.toLowerCase());
-      if (isIOS) {
-        setShowIOSGuide(true);
-      } else {
-        showToast("L'installation n'est pas encore disponible. Utilisez Google Chrome sur Android.", "info");
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setIsInstalled(true);
+          setDeferredPrompt(null);
+          showToast("Application installée avec succès sur votre téléphone !", "success");
+          return;
+        }
+      } catch (err) {
+        console.error('PWA install error:', err);
       }
     }
+
+    // Ouvrir le guide explicatif pour smartphone (Android & iPhone)
+    setShowInstallGuide(true);
   };
 
   // Nav bottom bar helpers
@@ -2044,9 +2042,11 @@ export default function App() {
           {/* Top Brand row & quick utility toggles */}
           <div className="flex items-center justify-between w-full md:w-auto">
             <div className="flex items-center gap-2 sm:gap-2.5">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-emerald-600 flex items-center justify-center shadow-md shrink-0">
-                <Car className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
-              </div>
+              <img 
+                src="/icons/icon.svg" 
+                alt="Logo Gestion Voitures" 
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-md border border-sky-500/40 object-cover shrink-0" 
+              />
               <div>
                 <h1 id="app-title" className="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">Gestion Voitures</h1>
                 <p className="text-[11px] sm:text-xs text-slate-400 font-medium">{entries.length} véhicule{entries.length > 1 ? 's' : ''} / courses</p>
@@ -2099,9 +2099,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Ligne des Boutons d'Action Supérieurs :
-              Sur mobile : Rafraîchir et Rapport côte à côte dans une seule ligne fine
-              Sur grand écran (md+) : Les 4 boutons complets */}
+          {/* Ligne des Boutons d'Action Supérieurs */}
           <div 
             id="top-action-buttons-group" 
             className="flex items-center gap-1.5 sm:gap-2 w-full md:w-auto"
@@ -2117,18 +2115,7 @@ export default function App() {
               <span>Rafraîchir / Synchro</span>
             </button>
 
-            {/* 2. Bouton de téléchargement vert : MASQUÉ SUR MOBILE, visible uniquement sur desktop */}
-            <button
-              id="top-download-btn"
-              onClick={handleDownloadOrInstall}
-              className="hidden md:flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs transition-all shadow shadow-emerald-950/40 active:scale-98 cursor-pointer touch-manipulation"
-              title={isInstalled ? "Télécharger la sauvegarde complète des courses (JSON)" : "Installer l'application sur votre système"}
-            >
-              <Download className="w-3.5 h-3.5 text-white" />
-              <span>{isInstalled ? "Télécharger Sauvegarde" : "Télécharger / Installer"}</span>
-            </button>
-
-            {/* 3. Bouton bleu "📊 Rapport" */}
+            {/* 2. Bouton bleu "📊 Rapport" */}
             <button
               id="top-report-btn"
               onClick={() => setIsReportOpen(true)}
@@ -2368,21 +2355,6 @@ export default function App() {
 
                       <div className="border-t border-slate-800 my-1"></div>
 
-                      {/* Sauvegarde JSON */}
-                      <button
-                        onClick={() => {
-                          handleExportJSON();
-                          setIsToolsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-sky-300 hover:bg-sky-950/60 active:bg-sky-900/70 transition-colors text-left cursor-pointer touch-manipulation"
-                      >
-                        <Download className="w-4 h-4 text-sky-400 shrink-0" />
-                        <div>
-                          <div className="font-bold">Sauvegarde JSON</div>
-                          <div className="text-[10px] text-slate-400">Télécharger la base complète</div>
-                        </div>
-                      </button>
-
                       {/* Importer */}
                       <button
                         onClick={() => {
@@ -2394,7 +2366,7 @@ export default function App() {
                         <Upload className="w-4 h-4 text-amber-400 shrink-0" />
                         <div>
                           <div className="font-bold">Importer un fichier</div>
-                          <div className="text-[10px] text-slate-400">Restaurer sauvegarde JSON ou CSV</div>
+                          <div className="text-[10px] text-slate-400">Restaurer fichier CSV ou sauvegarde</div>
                         </div>
                       </button>
 
@@ -4012,31 +3984,50 @@ export default function App() {
         </div>
       )}
 
-      {/* 6. IOS Installation Guide Dialog */}
-      {showIOSGuide && (
-        <div id="ios-guide-overlay" className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl flex flex-col gap-5 text-center animate-fade-in">
-            <div className="w-12 h-12 rounded-full bg-emerald-950/50 border border-emerald-900/50 text-emerald-400 flex items-center justify-center mx-auto">
-              <Info className="w-6 h-6" />
+      {/* 6. Phone Installation Guide Dialog */}
+      {showInstallGuide && (
+        <div id="install-guide-overlay" className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-center animate-fade-in">
+            <div className="w-12 h-12 rounded-full bg-emerald-950/60 border border-emerald-500/50 text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-950/40">
+              <ArrowDownToLine className="w-6 h-6 animate-bounce" />
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-base font-extrabold text-white">Installer sur iPhone / iPad</h3>
+              <h3 className="text-base font-extrabold text-white">Ajouter comme application au téléphone</h3>
               <p className="text-slate-400 text-xs leading-relaxed text-left">
-                Pour ajouter cette application sur votre écran d'accueil iOS :
+                Installez <strong>Gestion Voitures</strong> sur l'écran d'accueil de votre smartphone pour une utilisation rapide, plein écran et sans connexion :
               </p>
-              <ol className="text-left text-xs text-slate-300 space-y-2 list-decimal list-inside pl-1">
-                <li>Appuyez sur le bouton <span className="font-bold text-sky-400">Partager</span> dans la barre d'outils Safari (l'icône d'un carré avec une flèche vers le haut).</li>
-                <li>Faites défiler vers le bas et appuyez sur <span className="font-bold text-sky-400">Sur l'écran d'accueil</span>.</li>
-                <li>Appuyez sur <span className="font-bold text-sky-400">Ajouter</span> en haut à droite.</li>
-              </ol>
+
+              {/* Android instructions */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-left space-y-1.5">
+                <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <span>📱 Sur Android (Google Chrome)</span>
+                </div>
+                <ol className="text-[11px] text-slate-300 space-y-1 list-decimal list-inside pl-1">
+                  <li>Appuyez sur les <strong>3 points verticaux (⋮)</strong> en haut à droite du navigateur.</li>
+                  <li>Sélectionnez <strong>« Installer l'application »</strong> ou <strong>« Ajouter à l'écran d'accueil »</strong>.</li>
+                  <li>Confirmez l'installation sur votre téléphone.</li>
+                </ol>
+              </div>
+
+              {/* iOS instructions */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-left space-y-1.5">
+                <div className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  <span>🍏 Sur iPhone / iPad (Safari)</span>
+                </div>
+                <ol className="text-[11px] text-slate-300 space-y-1 list-decimal list-inside pl-1">
+                  <li>Appuyez sur le bouton <strong>Partager</strong> (icône carré avec une flèche vers le haut).</li>
+                  <li>Faites défiler vers le bas et appuyez sur <strong>« Sur l'écran d'accueil »</strong>.</li>
+                  <li>Appuyez sur <strong>« Ajouter »</strong> en haut à droite.</li>
+                </ol>
+              </div>
             </div>
 
             <button
-              id="close-ios-guide-btn"
-              onClick={() => setShowIOSGuide(false)}
-              className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs cursor-pointer active:scale-98 transition-all touch-manipulation"
-              style={{ minHeight: '44px' }}
+              id="close-install-guide-btn"
+              onClick={() => setShowInstallGuide(false)}
+              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs cursor-pointer active:scale-98 transition-all touch-manipulation shadow-md shadow-emerald-950/40"
+              style={{ minHeight: '42px' }}
             >
               Fermer
             </button>
@@ -4081,6 +4072,7 @@ export default function App() {
           <span className="text-[10px] font-bold">Rapport</span>
         </button>
 
+        {/* Bouton Rond Central Ajouter (+) */}
         <button
           id="nav-add-btn"
           onClick={handleOpenAdd}
@@ -4090,19 +4082,23 @@ export default function App() {
           <Plus className="w-6 h-6" strokeWidth={3} />
         </button>
 
-        {/* Mobile Fullscreen Button */}
+        {/* Petit bouton flèche en bas pour ajouter comme application au téléphone */}
         <button
-          id="nav-fullscreen-btn"
-          onClick={toggleFullscreen}
-          className="flex flex-col items-center gap-1 py-1 px-2.5 text-slate-400 active:text-sky-400 cursor-pointer touch-manipulation"
-          title={isFullscreen ? "Quitter le plein écran" : "Plein écran smartphone"}
+          id="nav-install-btn"
+          onClick={handleInstallClick}
+          className="flex flex-col items-center gap-1 py-1 px-2 text-emerald-400 active:text-emerald-300 cursor-pointer touch-manipulation"
+          title={isInstalled ? "Application installée sur le téléphone" : "Ajouter comme application au téléphone"}
         >
-          {isFullscreen ? (
-            <Minimize2 className="w-5 h-5 text-sky-400" />
-          ) : (
-            <Maximize2 className="w-5 h-5" />
-          )}
-          <span className="text-[10px] font-bold">{isFullscreen ? 'Réduire' : 'Plein Écran'}</span>
+          <div className="relative flex items-center justify-center">
+            <ArrowDownToLine className="w-5 h-5 text-emerald-400" />
+            {!isInstalled && (
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-bold">{isInstalled ? 'Appli OK' : 'Installer'}</span>
         </button>
 
         <button
@@ -4114,6 +4110,21 @@ export default function App() {
           <span className="text-[10px] font-bold">Recherche</span>
         </button>
       </nav>
+
+      {/* Petit bouton flèche flottant en bas pour grand écran */}
+      {!isInstalled && (
+        <button
+          id="desktop-install-quick-btn"
+          onClick={handleInstallClick}
+          className="hidden md:flex fixed bottom-4 right-4 z-40 items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900/95 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 shadow-2xl backdrop-blur-md active:scale-95 transition-all cursor-pointer touch-manipulation group"
+          title="Ajouter comme application au téléphone ou à l'ordinateur"
+        >
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-400">
+            <ArrowDownToLine className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-xs font-bold text-slate-200 group-hover:text-emerald-300 transition-colors">Ajouter au téléphone</span>
+        </button>
+      )}
 
       {/* 6b. Delete All Confirmation Modal */}
       {isDeleteAllOpen && (
