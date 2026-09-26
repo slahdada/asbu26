@@ -47,7 +47,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { RideEntry, FuelRecord } from './types';
 import { ReportModal } from './components/ReportModal';
-import { generateDriversReport } from './utils/reportUtils';
+import { generateDriversReport, formatDateToYYYYMMDD } from './utils/reportUtils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Pre-seeded high quality illustrative data for Tunisian context
 const SEED_DATA: RideEntry[] = [
@@ -391,6 +392,63 @@ export default function App() {
   const [formCarburantHistorique, setFormCarburantHistorique] = useState<FuelRecord[]>([]);
   const [formNotes, setFormNotes] = useState('');
 
+  // Nom du véhicule actuellement composé dans le formulaire
+  const currentFormCarName = useMemo(() => {
+    if (formBrand === '__custom_brand__') {
+      return `${customBrandInput.trim()} ${customModelInput.trim()}`.trim();
+    }
+    if (formBrand && formModel === '__custom_model__') {
+      return `${formBrand} ${customModelInput.trim()}`.trim();
+    }
+    if (formBrand === 'Autre / Custom' || !formBrand) {
+      return formCustomVoiture.trim();
+    }
+    return `${formBrand} ${formModel}`.trim();
+  }, [formBrand, formModel, customBrandInput, customModelInput, formCustomVoiture]);
+
+  // Détection de conflit : Interdit d'attribuer la même immatriculation à deux véhicules différents
+  const matriculeConflict = useMemo(() => {
+    const cleanMat = formMatricule.trim().toUpperCase().replace(/\s+/g, ' ');
+    if (!cleanMat) return null;
+
+    const normCurrent = currentFormCarName.toLowerCase().replace(/\s+/g, ' ');
+
+    const conflict = entries.find((e) => {
+      if (currentEntryId && e.id === currentEntryId) return false;
+      const entryMat = (e.matricule || '').trim().toUpperCase().replace(/\s+/g, ' ');
+      if (!entryMat || entryMat !== cleanMat) return false;
+
+      const normExisting = (e.voiture || '').toLowerCase().replace(/\s+/g, ' ');
+      // Est-ce un véhicule différent ?
+      return normCurrent ? (normExisting !== normCurrent) : true;
+    });
+
+    if (conflict) {
+      const normExisting = (conflict.voiture || '').toLowerCase().replace(/\s+/g, ' ');
+      const isDifferent = normCurrent ? (normExisting !== normCurrent) : true;
+      return {
+        matricule: cleanMat,
+        existingVoiture: conflict.voiture,
+        isDifferentCar: isDifferent
+      };
+    }
+    return null;
+  }, [formMatricule, currentFormCarName, entries, currentEntryId]);
+
+  // Matricule déjà enregistré pour ce véhicule dans la flotte
+  const knownMatriculeForCurrentCar = useMemo(() => {
+    const normCurrent = currentFormCarName.toLowerCase().replace(/\s+/g, ' ');
+    if (!normCurrent) return null;
+
+    const match = entries.find((e) => {
+      if (currentEntryId && e.id === currentEntryId) return false;
+      const normEntry = (e.voiture || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      return normEntry === normCurrent && (e.matricule || '').trim();
+    });
+
+    return match?.matricule || null;
+  }, [currentFormCarName, entries, currentEntryId]);
+
   // Quick refuel dialog (Ravitaillement rapide)
   const [quickFuelEntry, setQuickFuelEntry] = useState<RideEntry | null>(null);
   const [quickFuelAmount, setQuickFuelAmount] = useState('');
@@ -450,6 +508,8 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState(''); // Date de début pour l'export (menu Outils)
+  const [exportEndDate, setExportEndDate] = useState(''); // Date de fin pour l'export (menu Outils)
 
   // References
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -725,6 +785,79 @@ export default function App() {
     }
     return dateStr;
   };
+
+  // Raccourcis de sélection de période pour l'exportation
+  const handlePresetThisMonth = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setExportStartDate(formatDateToYYYYMMDD(firstDay));
+    setExportEndDate(formatDateToYYYYMMDD(lastDay));
+  };
+
+  const handlePresetLastMonth = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+    setExportStartDate(formatDateToYYYYMMDD(firstDay));
+    setExportEndDate(formatDateToYYYYMMDD(lastDay));
+  };
+
+  const handlePresetLast30Days = () => {
+    const now = new Date();
+    const past = new Date();
+    past.setDate(now.getDate() - 29);
+    setExportStartDate(formatDateToYYYYMMDD(past));
+    setExportEndDate(formatDateToYYYYMMDD(now));
+  };
+
+  const handlePresetLast7Days = () => {
+    const now = new Date();
+    const past = new Date();
+    past.setDate(now.getDate() - 6);
+    setExportStartDate(formatDateToYYYYMMDD(past));
+    setExportEndDate(formatDateToYYYYMMDD(now));
+  };
+
+  // Liste des courses filtrées pour l'export (PDF, CSV, Impression)
+  const entriesToExport = useMemo(() => {
+    if (!exportStartDate && !exportEndDate) {
+      return entries;
+    }
+
+    return entries.filter((entry) => {
+      let entryStart = entry.dateDepart || entry.dateRetour || '';
+      let entryEnd = entry.dateRetour || entry.dateDepart || '';
+
+      if (!entryStart && !entryEnd && entry.createdAt) {
+        const createdStr = new Date(entry.createdAt).toISOString().slice(0, 10);
+        entryStart = createdStr;
+        entryEnd = createdStr;
+      }
+
+      if (exportStartDate && entryEnd && entryEnd < exportStartDate) {
+        return false;
+      }
+      if (exportEndDate && entryStart && entryStart > exportEndDate) {
+        return false;
+      }
+      return true;
+    });
+  }, [entries, exportStartDate, exportEndDate]);
+
+  // Libellé textuel de la période d'exportation
+  const exportPeriodLabel = useMemo(() => {
+    if (exportStartDate && exportEndDate) {
+      return `Période du ${formatDateDisplay(exportStartDate)} au ${formatDateDisplay(exportEndDate)}`;
+    }
+    if (exportStartDate) {
+      return `À partir du ${formatDateDisplay(exportStartDate)}`;
+    }
+    if (exportEndDate) {
+      return `Jusqu'au ${formatDateDisplay(exportEndDate)}`;
+    }
+    return 'Toutes les dates';
+  }, [exportStartDate, exportEndDate]);
 
   // Helper to generate current automatic localized date and time in Tunisia/French format
   // Format: "DD/MM/YYYY à HH:mm" (e.g. "24/09/2026 à 14:55")
@@ -1316,12 +1449,52 @@ export default function App() {
     }
 
     // Validate Tunisian Matricule if entered (3 digits mandatory after TU)
-    const cleanMatricule = formMatricule.trim().toUpperCase();
+    const cleanMatricule = formMatricule.trim().toUpperCase().replace(/\s+/g, ' ');
     if (cleanMatricule) {
       const matriculeRegex = /^[0-9]{1,4}\s+TU\s+[0-9]{3}$/;
       if (!matriculeRegex.test(cleanMatricule)) {
         showToast('Le matricule doit comporter exactement 3 chiffres après TU (ex. 1234 TU 258 ou 245 TU 123)', 'error');
         return;
+      }
+
+      // RÈGLE FONDAMENTALE : Interdit de donner la même immatriculation pour deux véhicules différents
+      const conflictingVehicleEntry = entries.find((entry) => {
+        if (currentEntryId && entry.id === currentEntryId) return false;
+        const entryMatricule = (entry.matricule || '').trim().toUpperCase().replace(/\s+/g, ' ');
+        if (!entryMatricule || entryMatricule !== cleanMatricule) return false;
+
+        const existingCar = (entry.voiture || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        const currentCar = finalVoiture.trim().toLowerCase().replace(/\s+/g, ' ');
+        return existingCar !== currentCar;
+      });
+
+      if (conflictingVehicleEntry) {
+        showToast(
+          `Action interdite : L'immatriculation « ${cleanMatricule} » est déjà attribuée au véhicule « ${conflictingVehicleEntry.voiture} ». Il est strictement interdit d'attribuer la même immatriculation à deux véhicules différents !`,
+          'error'
+        );
+        return;
+      }
+
+      // RÈGLE DE DISPONIBILITÉ : Deux courses ne peuvent pas réserver le même véhicule physique sur des dates qui se chevauchent
+      if (formDateDepart && formDateRetour) {
+        const overlappingEntry = entries.find((entry) => {
+          if (currentEntryId && entry.id === currentEntryId) return false;
+          const entryMatricule = (entry.matricule || '').trim().toUpperCase().replace(/\s+/g, ' ');
+          if (!entryMatricule || entryMatricule !== cleanMatricule) return false;
+          if (!entry.dateDepart || !entry.dateRetour) return false;
+
+          // Chevauchement : départ <= retourAutre ET retour >= départAutre
+          return formDateDepart <= entry.dateRetour && formDateRetour >= entry.dateDepart;
+        });
+
+        if (overlappingEntry) {
+          showToast(
+            `Conflit de planning : Le véhicule « ${finalVoiture} » (${cleanMatricule}) est déjà réservé du ${formatDateDisplay(overlappingEntry.dateDepart)} au ${formatDateDisplay(overlappingEntry.dateRetour)} (Chauffeur : ${overlappingEntry.chauffeurNom}).`,
+            'error'
+          );
+          return;
+        }
       }
     }
 
@@ -1460,10 +1633,11 @@ export default function App() {
     setIsDeleteAllOpen(false);
   };
 
-  // 8c. Real PDF Export with jsPDF & autoTable
+  // 8c. Real PDF Export with jsPDF & autoTable (Filtré par la période sélectionnée)
   const handleExportPDF = () => {
-    if (entries.length === 0) {
-      showToast('Aucune course à exporter en PDF', 'info');
+    const targetEntries = entriesToExport;
+    if (targetEntries.length === 0) {
+      showToast('Aucune course dans la période sélectionnée pour le PDF', 'info');
       return;
     }
 
@@ -1494,12 +1668,13 @@ export default function App() {
         month: 'long',
         year: 'numeric'
       });
-      doc.text(`Rapport édité le ${dateStr} - Total : ${entries.length} course(s)`, 297 - 14, 15, { align: 'right' });
+      const periodSubtitle = (exportStartDate || exportEndDate) ? ` - ${exportPeriodLabel}` : '';
+      doc.text(`Rapport édité le ${dateStr}${periodSubtitle} - Total : ${targetEntries.length} course(s)`, 297 - 14, 15, { align: 'right' });
 
       // Build table data
       const head = [['#', 'Voiture & Matricule', 'Carburant (DT)', 'Dates (Dép. - Ret.)', 'Chauffeur', 'Tél Chauffeur', 'Client', 'Tél Client', 'Notes / Mission']];
       
-      const data = entries.map((e, index) => {
+      const data = targetEntries.map((e, index) => {
         const datesStr = (e.dateDepart || e.dateRetour)
           ? `${e.dateDepart ? formatDateDisplay(e.dateDepart) : '—'}\n➔ ${e.dateRetour ? formatDateDisplay(e.dateRetour) : '—'}`
           : 'Non définie';
@@ -1568,8 +1743,8 @@ export default function App() {
         }
       });
 
-      // 8c-bis. Ajouter la page de Synthèse par Voiture (Nombre de Jours & Consommation Énergie Totale)
-      const { vehicleReports, stats } = generateDriversReport(entries, {
+      // 8c-bis. Ajouter la page de Synthèse par Voiture pour les courses de la période
+      const { vehicleReports, stats } = generateDriversReport(targetEntries, {
         nombreDeJours: null,
         dateReference: new Date().toISOString().slice(0, 10),
         chauffeurFiltre: 'all',
@@ -1591,7 +1766,7 @@ export default function App() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(148, 163, 184);
-        doc.text(`Total : ${stats.totalVehiculesDistincts} véhicule(s) · ${stats.totalJoursFlotte} jours cumulés · ${stats.consommationEnergieTotaleFlotteDT} DT énergie`, 297 - 14, 15, { align: 'right' });
+        doc.text(`Total : ${stats.totalVehiculesDistincts} véhicule(s) · ${stats.totalJoursFlotte} jours cumulés · ${stats.consommationEnergieTotaleFlotteDT} DT énergie${periodSubtitle}`, 297 - 14, 15, { align: 'right' });
 
         const vehicleRows = vehicleReports.map((v, index) => {
           const avgPerDay = v.totalJours > 0 ? `${(v.consommationEnergieTotaleDT / v.totalJours).toFixed(1)} DT/j` : '—';
@@ -1665,9 +1840,12 @@ export default function App() {
         });
       }
 
-      const fileName = `rapport_courses_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const fileDateSuffix = (exportStartDate || exportEndDate)
+        ? `${exportStartDate || 'debut'}_au_${exportEndDate || 'fin'}`
+        : new Date().toISOString().slice(0, 10);
+      const fileName = `rapport_courses_${fileDateSuffix}.pdf`;
       doc.save(fileName);
-      showToast('Fichier PDF téléchargé avec succès !', 'success');
+      showToast(`Fichier PDF (${targetEntries.length} courses) téléchargé avec succès !`, 'success');
     } catch (err) {
       console.error('PDF export error:', err);
       showToast('Erreur lors de la génération du fichier PDF', 'error');
@@ -1676,8 +1854,9 @@ export default function App() {
 
   // 8c2. Print Handler with iframe-safe fallback
   const handlePrint = () => {
-    if (entries.length === 0) {
-      showToast('Aucune course à imprimer', 'info');
+    const targetEntries = entriesToExport;
+    if (targetEntries.length === 0) {
+      showToast('Aucune course dans la période sélectionnée à imprimer', 'info');
       return;
     }
 
@@ -1706,10 +1885,11 @@ export default function App() {
     }
   };
 
-  // 8d. Export to CSV
+  // 8d. Export to CSV (Filtré par la période sélectionnée)
   const handleExportCSV = () => {
-    if (entries.length === 0) {
-      showToast('Aucune course à exporter', 'info');
+    const targetEntries = entriesToExport;
+    if (targetEntries.length === 0) {
+      showToast('Aucune course dans la période sélectionnée à exporter', 'info');
       return;
     }
     
@@ -1717,7 +1897,7 @@ export default function App() {
     const headers = ['Voiture', 'Matricule', 'Carburant_DT', 'Date_Carburant', 'Date_Depart', 'Date_Retour', 'Nom_Chauffeur', 'Indicatif_Chauffeur', 'Tel_Chauffeur', 'Nom_Client', 'Indicatif_Client', 'Tel_Client', 'Notes_Mission'];
     const csvContent = [
       headers.join(';'),
-      ...entries.map(e => [
+      ...targetEntries.map(e => [
         `"${(e.voiture || '').replace(/"/g, '""')}"`,
         `"${(e.matricule || '').replace(/"/g, '""')}"`,
         `"${e.carburant ? e.carburant.toString() : ''}"`,
@@ -1740,11 +1920,14 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `gestion_voitures_${new Date().toISOString().slice(0, 10)}.csv`);
+    const fileDateSuffix = (exportStartDate || exportEndDate)
+      ? `${exportStartDate || 'debut'}_au_${exportEndDate || 'fin'}`
+      : new Date().toISOString().slice(0, 10);
+    link.setAttribute('download', `gestion_voitures_${fileDateSuffix}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast('Fichier CSV exporté avec succès !', 'success');
+    showToast(`Fichier CSV (${targetEntries.length} course${targetEntries.length > 1 ? 's' : ''}) exporté avec succès !`, 'success');
   };
 
   // 8e. Export to JSON (Sauvegarde complète)
@@ -1825,6 +2008,36 @@ export default function App() {
 
           if (validated.length === 0) {
             showToast('Aucune course valide trouvée dans le fichier JSON', 'error');
+            return;
+          }
+
+          // RÈGLE : Interdit de donner la même immatriculation pour deux véhicules différents
+          const jsonMatriculeMap = new Map<string, string>();
+          entries.forEach((e) => {
+            const mat = (e.matricule || '').trim().toUpperCase().replace(/\s+/g, ' ');
+            if (mat && e.voiture) {
+              jsonMatriculeMap.set(mat, e.voiture.trim());
+            }
+          });
+
+          let jsonConflict: { matricule: string; car1: string; car2: string } | null = null;
+          for (const item of validated) {
+            const mat = (item.matricule || '').trim().toUpperCase().replace(/\s+/g, ' ');
+            if (mat && item.voiture) {
+              const knownCar = jsonMatriculeMap.get(mat);
+              if (knownCar && knownCar.toLowerCase().replace(/\s+/g, ' ') !== item.voiture.trim().toLowerCase().replace(/\s+/g, ' ')) {
+                jsonConflict = { matricule: mat, car1: knownCar, car2: item.voiture.trim() };
+                break;
+              }
+              jsonMatriculeMap.set(mat, item.voiture.trim());
+            }
+          }
+
+          if (jsonConflict) {
+            showToast(
+              `Importation refusée : L'immatriculation « ${jsonConflict.matricule} » apparaît pour deux véhicules différents (« ${jsonConflict.car1} » et « ${jsonConflict.car2} »).`,
+              'error'
+            );
             return;
           }
 
@@ -1920,6 +2133,36 @@ export default function App() {
 
           if (validated.length === 0) {
             showToast('Aucun trajet valide trouvé dans le CSV', 'error');
+            return;
+          }
+
+          // RÈGLE : Interdit de donner la même immatriculation pour deux véhicules différents
+          const csvMatriculeMap = new Map<string, string>();
+          entries.forEach((e) => {
+            const mat = (e.matricule || '').trim().toUpperCase().replace(/\s+/g, ' ');
+            if (mat && e.voiture) {
+              csvMatriculeMap.set(mat, e.voiture.trim());
+            }
+          });
+
+          let csvConflict: { matricule: string; car1: string; car2: string } | null = null;
+          for (const item of validated) {
+            const mat = (item.matricule || '').trim().toUpperCase().replace(/\s+/g, ' ');
+            if (mat && item.voiture) {
+              const knownCar = csvMatriculeMap.get(mat);
+              if (knownCar && knownCar.toLowerCase().replace(/\s+/g, ' ') !== item.voiture.trim().toLowerCase().replace(/\s+/g, ' ')) {
+                csvConflict = { matricule: mat, car1: knownCar, car2: item.voiture.trim() };
+                break;
+              }
+              csvMatriculeMap.set(mat, item.voiture.trim());
+            }
+          }
+
+          if (csvConflict) {
+            showToast(
+              `Importation refusée : L'immatriculation « ${csvConflict.matricule} » apparaît pour deux véhicules différents (« ${csvConflict.car1} » et « ${csvConflict.car2} »).`,
+              'error'
+            );
             return;
           }
 
@@ -2281,12 +2524,17 @@ export default function App() {
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer touch-manipulation border shadow-sm ${
                     isToolsOpen 
                       ? 'bg-sky-950 border-sky-600 text-sky-300' 
+                      : (exportStartDate || exportEndDate)
+                      ? 'bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500 text-emerald-300'
                       : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
                   }`}
-                  title="Ouvrir les outils : PDF, Impression, CSV, Sauvegardes..."
+                  title="Ouvrir les outils : Période d'export, PDF, Impression, CSV..."
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  <FileSpreadsheet className={`w-3.5 h-3.5 ${(exportStartDate || exportEndDate) ? 'text-emerald-300' : 'text-emerald-400'}`} />
                   <span>Outils</span>
+                  {(exportStartDate || exportEndDate) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  )}
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isToolsOpen ? 'rotate-180 text-sky-400' : 'text-slate-400'}`} />
                 </button>
 
@@ -2299,61 +2547,197 @@ export default function App() {
                     />
                     <div 
                       id="tools-dropdown-menu"
-                      className="absolute left-0 mt-2 z-40 w-64 p-2 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl backdrop-blur-xl flex flex-col gap-1 animate-fade-in"
+                      className="absolute left-0 mt-2 z-40 w-80 max-w-[calc(100vw-24px)] p-3 rounded-2xl bg-slate-900/98 border border-slate-700 shadow-2xl backdrop-blur-xl flex flex-col gap-2.5 animate-fade-in text-slate-200"
                     >
-                      <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 flex items-center justify-between">
-                        <span>Outils & Sauvegarde</span>
-                        <span className="text-[10px] text-slate-500 font-normal">Export / Fichiers</span>
+                      {/* Entête du menu */}
+                      <div className="px-1 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Outils & Exportations</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-normal">Filtre Période</span>
                       </div>
 
-                      {/* PDF */}
-                      <button
-                        id="export-pdf-btn"
-                        onClick={() => {
-                          handleExportPDF();
-                          setIsToolsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-rose-300 hover:bg-rose-950/60 active:bg-rose-900/70 transition-colors text-left cursor-pointer touch-manipulation"
-                      >
-                        <FileDown className="w-4 h-4 text-rose-400 shrink-0" />
-                        <div>
-                          <div className="font-bold">Enregistrer PDF</div>
-                          <div className="text-[10px] text-slate-400">Liste complète prête à imprimer</div>
+                      {/* SECTION SÉLECTION DE PÉRIODE POUR L'EXPORT */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800/90 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                            <span>Période des rapports</span>
+                          </span>
+                          {(exportStartDate || exportEndDate) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setExportStartDate('');
+                                setExportEndDate('');
+                              }}
+                              className="text-[10px] font-semibold text-sky-400 hover:text-sky-300 underline cursor-pointer"
+                              title="Réinitialiser la période pour exporter toutes les dates"
+                            >
+                              Toutes les dates
+                            </button>
+                          )}
                         </div>
-                      </button>
 
-                      {/* Imprimer */}
-                      <button
-                        id="print-btn"
-                        onClick={() => {
-                          handlePrint();
-                          setIsToolsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-indigo-300 hover:bg-indigo-950/60 active:bg-indigo-900/70 transition-colors text-left cursor-pointer touch-manipulation"
-                      >
-                        <Printer className="w-4 h-4 text-indigo-400 shrink-0" />
-                        <div>
-                          <div className="font-bold">Imprimer</div>
-                          <div className="text-[10px] text-slate-400">Aperçu et impression directe</div>
+                        {/* Champs Date début & Date fin */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label htmlFor="export-start-date" className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                              Date de début
+                            </label>
+                            <input
+                              id="export-start-date"
+                              type="date"
+                              value={exportStartDate}
+                              onChange={(e) => setExportStartDate(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="export-end-date" className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                              Date de fin
+                            </label>
+                            <input
+                              id="export-end-date"
+                              type="date"
+                              value={exportEndDate}
+                              onChange={(e) => setExportEndDate(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-colors"
+                            />
+                          </div>
                         </div>
-                      </button>
 
-                      {/* CSV */}
-                      <button
-                        onClick={() => {
-                          handleExportCSV();
-                          setIsToolsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-emerald-300 hover:bg-emerald-950/60 active:bg-emerald-900/70 transition-colors text-left cursor-pointer touch-manipulation"
-                      >
-                        <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <div>
-                          <div className="font-bold">Export Excel / CSV</div>
-                          <div className="text-[10px] text-slate-400">Fichier tableur pour gestion</div>
+                        {/* Raccourcis rapides de période */}
+                        <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => { setExportStartDate(''); setExportEndDate(''); }}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors cursor-pointer ${
+                              !exportStartDate && !exportEndDate
+                                ? 'bg-sky-600 text-white'
+                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                            }`}
+                          >
+                            Toutes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handlePresetThisMonth}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+                          >
+                            Ce mois
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handlePresetLastMonth}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+                          >
+                            Mois dernier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handlePresetLast30Days}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+                          >
+                            30 j
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handlePresetLast7Days}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+                          >
+                            7 j
+                          </button>
                         </div>
-                      </button>
 
-                      <div className="border-t border-slate-800 my-1"></div>
+                        {/* Indicateur dynamique du nombre de courses dans la période */}
+                        <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400">Courses à exporter :</span>
+                          <span className={`font-bold ${entriesToExport.length > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {entriesToExport.length} sur {entries.length}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* BOUTONS D'EXPORTATION */}
+                      <div className="flex flex-col gap-1">
+                        {/* PDF */}
+                        <button
+                          id="export-pdf-btn"
+                          onClick={() => {
+                            handleExportPDF();
+                            setIsToolsOpen(false);
+                          }}
+                          disabled={entriesToExport.length === 0}
+                          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer touch-manipulation ${
+                            entriesToExport.length === 0
+                              ? 'opacity-50 cursor-not-allowed text-slate-500'
+                              : 'text-rose-300 hover:bg-rose-950/60 active:bg-rose-900/70'
+                          }`}
+                        >
+                          <FileDown className="w-4 h-4 text-rose-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold flex items-center justify-between">
+                              <span>Enregistrer PDF</span>
+                              <span className="text-[10px] text-rose-400/90 font-normal">({entriesToExport.length})</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {exportPeriodLabel}
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Imprimer */}
+                        <button
+                          id="print-btn"
+                          onClick={() => {
+                            handlePrint();
+                            setIsToolsOpen(false);
+                          }}
+                          disabled={entriesToExport.length === 0}
+                          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer touch-manipulation ${
+                            entriesToExport.length === 0
+                              ? 'opacity-50 cursor-not-allowed text-slate-500'
+                              : 'text-indigo-300 hover:bg-indigo-950/60 active:bg-indigo-900/70'
+                          }`}
+                        >
+                          <Printer className="w-4 h-4 text-indigo-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold flex items-center justify-between">
+                              <span>Imprimer</span>
+                              <span className="text-[10px] text-indigo-400/90 font-normal">({entriesToExport.length})</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">Aperçu et impression de la période</div>
+                          </div>
+                        </button>
+
+                        {/* CSV */}
+                        <button
+                          id="export-csv-btn"
+                          onClick={() => {
+                            handleExportCSV();
+                            setIsToolsOpen(false);
+                          }}
+                          disabled={entriesToExport.length === 0}
+                          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer touch-manipulation ${
+                            entriesToExport.length === 0
+                              ? 'opacity-50 cursor-not-allowed text-slate-500'
+                              : 'text-emerald-300 hover:bg-emerald-950/60 active:bg-emerald-900/70'
+                          }`}
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold flex items-center justify-between">
+                              <span>Export Excel / CSV</span>
+                              <span className="text-[10px] text-emerald-400/90 font-normal">({entriesToExport.length})</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">Fichier tableur filtré par la période</div>
+                          </div>
+                        </button>
+                      </div>
+
+                      <div className="border-t border-slate-800 my-0.5"></div>
 
                       {/* Importer */}
                       <button
@@ -2361,7 +2745,7 @@ export default function App() {
                           triggerImportFile();
                           setIsToolsOpen(false);
                         }}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-amber-300 hover:bg-amber-950/60 active:bg-amber-900/70 transition-colors text-left cursor-pointer touch-manipulation"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-amber-300 hover:bg-amber-950/60 active:bg-amber-900/70 transition-colors text-left cursor-pointer touch-manipulation"
                       >
                         <Upload className="w-4 h-4 text-amber-400 shrink-0" />
                         <div>
@@ -2372,13 +2756,13 @@ export default function App() {
 
                       {entries.length > 0 && (
                         <>
-                          <div className="border-t border-slate-800 my-1"></div>
+                          <div className="border-t border-slate-800 my-0.5"></div>
                           <button
                             onClick={() => {
                               triggerDeleteAll();
                               setIsToolsOpen(false);
                             }}
-                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-950/60 active:bg-rose-900/70 transition-colors text-left cursor-pointer touch-manipulation"
+                            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-950/60 active:bg-rose-900/70 transition-colors text-left cursor-pointer touch-manipulation"
                           >
                             <Trash className="w-4 h-4 text-rose-400 shrink-0" />
                             <div>
@@ -2467,7 +2851,14 @@ export default function App() {
         <section id="rides-section" className="mb-4">
           
           {filteredEntries.length === 0 ? (
-            <div className="bg-slate-950/40 rounded-xl sm:rounded-2xl border border-slate-800/60 p-6 sm:p-8 text-center flex flex-col items-center justify-center">
+            <motion.div 
+              key="no-entries-state"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="bg-slate-950/40 rounded-xl sm:rounded-2xl border border-slate-800/60 p-6 sm:p-8 text-center flex flex-col items-center justify-center"
+            >
               <div className="w-14 h-14 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-3 text-slate-500">
                 <Search className="w-6 h-6" />
               </div>
@@ -2490,7 +2881,7 @@ export default function App() {
                   Effacer les filtres
                 </button>
               )}
-            </div>
+            </motion.div>
           ) : viewMode === 'list' ? (
             /* Professional Sheets / PDF Data Table Mode */
             <div id="rides-table-container" className="w-full overflow-x-auto bg-slate-950/60 rounded-xl sm:rounded-2xl border border-slate-800 shadow-xl">
@@ -2714,15 +3105,31 @@ export default function App() {
               </div>
           ) : (
             /* Modern Bento Cards Grid Mode */
-            <div id="rides-grid-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 w-full">
-              {filteredEntries.map((entry) => {
-                const duration = calculateTripDuration(entry.dateDepart, entry.dateRetour);
-                return (
-                  <div 
-                    key={entry.id}
-                    className="bg-slate-950/80 border border-slate-800/90 hover:border-sky-500/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-lg flex flex-col justify-between gap-2.5 sm:gap-3.5 transition-all group w-full"
-                  >
-                    {/* Card Header: Clickable to open executable details */}
+            <motion.div 
+              id="rides-grid-list" 
+              layout
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 w-full"
+            >
+              <AnimatePresence mode="popLayout">
+                {filteredEntries.map((entry, index) => {
+                  const duration = calculateTripDuration(entry.dateDepart, entry.dateRetour);
+                  return (
+                    <motion.div 
+                      key={entry.id}
+                      layout
+                      initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 14, scale: 0.94, transition: { duration: 0.18 } }}
+                      transition={{
+                        duration: 0.3,
+                        delay: Math.min(index * 0.035, 0.28),
+                        ease: [0.22, 1, 0.36, 1],
+                        layout: { duration: 0.28, ease: 'easeOut' }
+                      }}
+                      whileHover={{ y: -2, transition: { duration: 0.18 } }}
+                      className="bg-slate-950/80 border border-slate-800/90 hover:border-sky-500/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-lg flex flex-col justify-between gap-2.5 sm:gap-3.5 transition-colors group w-full"
+                    >
+                      {/* Card Header: Clickable to open executable details */}
                     <div 
                       onClick={() => setSelectedEntry(entry)}
                       className="flex items-center justify-between border-b border-slate-800/80 pb-2 cursor-pointer"
@@ -2949,11 +3356,12 @@ export default function App() {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
-          )}
+            </AnimatePresence>
+          </motion.div>
+        )}
 
         </section>
       </main>
@@ -3444,16 +3852,23 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Matricule Tunisien intelligent (Auto-format) */}
+                {/* Matricule Tunisien intelligent (Auto-format) & Contrôle d'unicité par véhicule */}
                 <div className="flex flex-col gap-1.5 pt-1">
                   <div className="flex items-center justify-between">
                     <label htmlFor="form-matricule" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                       <span>Matricule (Immatriculation TN)</span>
                       <span className="text-[10px] text-slate-400 font-normal">(Optionnel)</span>
                     </label>
-                    {formMatricule && (
-                      <span className="text-[10px] text-emerald-400 font-medium">
+                    {formMatricule && !matriculeConflict?.isDifferentCar && (
+                      <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                        <Check className="w-3 h-3" />
                         Format Tunisie
+                      </span>
+                    )}
+                    {matriculeConflict?.isDifferentCar && (
+                      <span className="text-[10px] text-rose-400 font-bold flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Conflit véhicule
                       </span>
                     )}
                   </div>
@@ -3468,7 +3883,11 @@ export default function App() {
                         onKeyDown={handleMatriculeKeyDown}
                         placeholder="Ex. 1234 TU 258 ou 123 TU 258"
                         maxLength={13}
-                        className="w-full px-3.5 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 font-mono tracking-wider font-semibold placeholder-slate-500 focus:outline-none focus:border-sky-500 text-sm"
+                        className={`w-full px-3.5 py-3 rounded-xl bg-slate-900 border font-mono tracking-wider font-semibold placeholder-slate-500 text-sm transition-colors ${
+                          matriculeConflict?.isDifferentCar
+                            ? 'border-rose-500 text-rose-200 focus:outline-none focus:ring-1 focus:ring-rose-500'
+                            : 'border-slate-800 text-slate-100 focus:outline-none focus:border-sky-500'
+                        }`}
                         style={{ minHeight: '44px' }}
                       />
                     </div>
@@ -3476,14 +3895,18 @@ export default function App() {
                     {/* Plaque d'immatriculation tunisienne en direct */}
                     {formMatricule ? (
                       <div 
-                        className="flex items-center justify-center gap-2.5 px-3.5 py-2 rounded-xl bg-black border-2 border-slate-700 text-white font-mono font-black text-sm tracking-widest shadow-md select-none shrink-0"
-                        title="Aperçu de la plaque tunisienne"
+                        className={`flex items-center justify-center gap-2.5 px-3.5 py-2 rounded-xl bg-black border-2 text-white font-mono font-black text-sm tracking-widest shadow-md select-none shrink-0 ${
+                          matriculeConflict?.isDifferentCar ? 'border-rose-600' : 'border-slate-700'
+                        }`}
+                        title={matriculeConflict?.isDifferentCar ? 'Immatriculation déjà utilisée par un autre véhicule' : 'Aperçu de la plaque tunisienne'}
                       >
                         <div className="flex items-center gap-1">
                           <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block shadow-sm"></span>
                           <span className="text-[10px] text-slate-400 font-sans font-extrabold tracking-normal">TN</span>
                         </div>
-                        <span className="text-amber-300 drop-shadow-sm">{formMatricule}</span>
+                        <span className={matriculeConflict?.isDifferentCar ? 'text-rose-400 drop-shadow-sm line-through' : 'text-amber-300 drop-shadow-sm'}>
+                          {formMatricule}
+                        </span>
                       </div>
                     ) : (
                       <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800/80 text-slate-400 text-xs shrink-0 select-none">
@@ -3491,6 +3914,45 @@ export default function App() {
                       </div>
                     )}
                   </div>
+
+                  {/* ALERTE CONFLIT : INTERDIT D'ATTRIBUER LE MÊME MATRICULE À DEUX VÉHICULES */}
+                  {matriculeConflict?.isDifferentCar && (
+                    <div 
+                      role="alert"
+                      className="flex items-start gap-2 p-2.5 rounded-xl bg-rose-950/80 border border-rose-600/80 text-rose-200 text-xs animate-fade-in"
+                    >
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-rose-300">
+                          Attribution interdite : Immatriculation déjà enregistrée
+                        </div>
+                        <p className="text-[11px] text-rose-200/90 leading-relaxed">
+                          Le matricule <strong className="font-mono text-white underline">{matriculeConflict.matricule}</strong> est déjà attribué au véhicule <strong className="text-white">« {matriculeConflict.existingVoiture} »</strong>.
+                          <br />
+                          <span className="font-semibold text-rose-300">Il est strictement interdit de donner la même immatriculation à deux véhicules différents.</span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PROPOSITION AUTOMATIQUE DU MATRICULE EXISTANT POUR CE VÉHICULE */}
+                  {knownMatriculeForCurrentCar && !formMatricule && (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormMatricule(knownMatriculeForCurrentCar)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/80 border border-sky-800 hover:bg-sky-900 text-sky-300 text-xs font-semibold transition-all cursor-pointer touch-manipulation active:scale-95"
+                        title="Remplir automatiquement le matricule officiel de ce véhicule"
+                      >
+                        <Car className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Matricule officiel de ce véhicule :</span>
+                        <span className="font-mono font-bold text-white bg-slate-900 px-1.5 py-0.2 rounded border border-slate-700">
+                          {knownMatriculeForCurrentCar}
+                        </span>
+                        <span className="text-[10px] text-sky-400 underline font-normal">Appliquer</span>
+                      </button>
+                    </div>
+                  )}
 
                   <p className="text-[11px] text-slate-400 leading-tight">
                     💡 <strong className="text-slate-300">Formatage automatique :</strong> tapez 4 chiffres et le système ajoute automatiquement <span className="text-sky-400 font-mono font-bold">TU</span>. Ou tapez 1, 2 ou 3 chiffres puis appuyez sur <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-mono border border-slate-700">Espace</kbd> pour insérer <span className="text-sky-400 font-mono font-bold">TU</span> et terminez par les 3 chiffres (ex: <code className="text-sky-300">1234 TU 258</code> ou <code className="text-sky-300">123 TU 258</code>).
@@ -3821,7 +4283,13 @@ export default function App() {
                 <button
                   id="submit-form-btn"
                   type="submit"
-                  className="px-6 py-3.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow shadow-sky-950/50 cursor-pointer active:scale-98 transition-all touch-manipulation"
+                  disabled={Boolean(matriculeConflict?.isDifferentCar)}
+                  className={`px-6 py-3.5 rounded-xl font-bold text-sm shadow transition-all touch-manipulation ${
+                    matriculeConflict?.isDifferentCar
+                      ? 'bg-rose-950/70 border border-rose-800/80 text-rose-300 opacity-60 cursor-not-allowed shadow-none'
+                      : 'bg-sky-600 hover:bg-sky-500 active:scale-98 text-white shadow-sky-950/50 cursor-pointer'
+                  }`}
+                  title={matriculeConflict?.isDifferentCar ? "Action interdite : Cette immatriculation est déjà attribuée à un autre véhicule" : undefined}
                   style={{ minHeight: '44px', minWidth: '120px' }}
                 >
                   {currentEntryId ? 'Enregistrer les modifications' : 'Enregistrer'}
